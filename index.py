@@ -31,28 +31,22 @@ class AnimalAudioDetector:
             feature = self.extract_features(path)
             features.append(feature)
         
-        # Ensure all features have the same number of mel bands
         n_mels = features[0].shape[0]
         for feature in features:
             if feature.shape[0] != n_mels:
                 raise ValueError("All features must have the same number of mel bands.")
         
-        # Determine the maximum length of the features
         max_length = max([f.shape[1] for f in features])
         print(f"Maximum feature length: {max_length}")
         
-        # Pad or truncate features to the maximum length
         padded_features = []
         for feature in features:
             if feature.shape[1] < max_length:
-                # Pad with zeros on the time axis
                 padded_feature = np.pad(feature, ((0, 0), (0, max_length - feature.shape[1])), mode='constant')
             else:
-                # Truncate to the maximum length
                 padded_feature = feature[:, :max_length]
             padded_features.append(padded_feature)
         
-        # Convert to NumPy array and add channel dimension
         features = np.array(padded_features)
         features = features.reshape(-1, n_mels, max_length, 1)
         labels = np.array(labels)
@@ -92,6 +86,7 @@ class AnimalAudioDetector:
             batch_size=batch_size
         )
         print("Training completed.")
+        self.model.save_weights('audio_animal.weights.h5')
         return history
     
     def predict(self, audio_path):
@@ -105,13 +100,11 @@ class AnimalAudioDetector:
         loss, accuracy = self.model.evaluate(X_test, y_test)
         return accuracy * 100
 
-# Example usage
 def main():
     train_folder = 'dataset\\DataTrain'
     test_folder = 'dataset\\DataTest'
     classes = ['cat', 'dog', 'duck', 'horse']
     
-    # Function to load data
     def load_data(folder, classes):
         audio_paths = []
         labels = []
@@ -129,37 +122,29 @@ def main():
                     labels.append(label)
         return audio_paths, labels
     
-    # Load training data
     audio_paths_train, labels_train = load_data(train_folder, classes)
     print(f"Total training samples: {len(audio_paths_train)}")
     
-    # Load testing data
     audio_paths_test, labels_test = load_data(test_folder, classes)
     print(f"Total testing samples: {len(audio_paths_test)}")
     
-    # Initialize detector
     detector = AnimalAudioDetector()
     
-    # Prepare training dataset
     X_train, y_train = detector.prepare_dataset(audio_paths_train, labels_train)
     
-    # Prepare testing dataset
     X_test, y_test = detector.prepare_dataset(audio_paths_test, labels_test)
     
-    # Verify label distribution
     print("Training label distribution:")
     print(np.sum(y_train, axis=0))
     print("Testing label distribution:")
     print(np.sum(y_test, axis=0))
     
-    # Build and train model
     detector.build_model(
         input_shape=(X_train.shape[1], X_train.shape[2], 1),
         num_classes=len(classes)
     )
     detector.train(X_train, y_train)
     
-    # Evaluate the model
     accuracy = detector.evaluate(X_test, y_test)
     print(f'Model accuracy on test set: {accuracy:.2f}%')
 
